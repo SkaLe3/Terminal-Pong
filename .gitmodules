@@ -1,0 +1,3 @@
+[submodule "Engine/Termynth"]
+	path = Engine/Termynth
+	url = https://github.com/SkaLe3/Termynth
