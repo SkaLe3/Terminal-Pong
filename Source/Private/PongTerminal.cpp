@@ -2,7 +2,7 @@
 #include "Engine/Engine.h"
 #include "Core/Globals.h"
 #include "Core/Logger.h"
-
+#include "Input/InputManager.h"
 
 
 void ApplicationInit()
@@ -35,6 +35,19 @@ void PongTerminal::Init()
 
 void PongTerminal::Tick(float deltaTime)
 {
+    auto& input = InputManager::Get();
+    if (input.GetKey(Key::W))
+    {
+        LOG_INFO("W held");
+    }
+    if (input.GetKeyPressed(Key::W))
+    {
+        LOG_INFO("W pressed");
+    }
+    if (input.GetKeyReleased(Key::W))
+    {
+        LOG_INFO("W released");
+    }
 
 }
 
