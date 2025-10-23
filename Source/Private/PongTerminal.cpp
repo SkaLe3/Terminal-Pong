@@ -4,7 +4,6 @@
 #include "Core/Logger.h"
 #include "Input/InputManager.h"
 
-
 void ApplicationInit()
 {
     GlobalParameters::g_ViewportWidth = 80;
