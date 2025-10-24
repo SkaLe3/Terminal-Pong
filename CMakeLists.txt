@@ -16,17 +16,39 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(USE_ENGINE_SUBMODULE "Use TermynthEngine as submodule" ON)
 
+# Provide project directory
+set(TERMYNTH_PROJECT_DIR "${CMAKE_SOURCE_DIR}")
+
 if(USE_ENGINE_SUBMODULE)
 	# Engine is in same repo as submodule
+	set(TERMYNTH_ENGINE_DIR "${CMAKE_SOURCE_DIR}/Engine/Termynth")
+	add_compile_definitions(
+    TERMYNTH_ENGINE_DIR=\"${TERMYNTH_ENGINE_DIR}\"
+    TERMYNTH_PROJECT_DIR=\"${TERMYNTH_PROJECT_DIR}\"
+	)
 	add_subdirectory(Engine/Termynth)
 	set(ENGINE_CLIENT_LIB TermynthEngine)
     set(ENGINE_SERVER_LIB TermynthEngineServer)
 else()
 	# Engine is installed on system
 	find_package(Termynth 1.0 REQUIRED)
+	
+	if (DEFINED Termynth_DIR)
+        set(TERMYNTH_ENGINE_DIR "${Termynth_DIR}")
+    else()
+        # fallback if CMake doesn’t expose it
+        set(TERMYNTH_ENGINE_DIR "${CMAKE_INSTALL_PREFIX}")
+    endif()
+	add_compile_definitions(
+    TERMYNTH_ENGINE_DIR=\"${TERMYNTH_ENGINE_DIR}\"
+    TERMYNTH_PROJECT_DIR=\"${TERMYNTH_PROJECT_DIR}\"
+)
+	
 	set(ENGINE_CLIENT_LIB Termynth::TermynthEngine)
     set(ENGINE_SERVER_LIB Termynth::TermynthEngineServer)
 endif()
+
+
 
 # =======================================================
 # --------------------- Executable Targets ---------------------
