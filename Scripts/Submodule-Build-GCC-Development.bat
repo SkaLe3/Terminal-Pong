@@ -8,6 +8,7 @@ cd /d "%~dp0"
 cd ..
 
 cmake -B Build/GCC -S . -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Development -DUSE_ENGINE_SUBMODULE="ON" 
+cmake --build Build/GCC  --target TermynthPakBuilder
 cmake --build Build/GCC  --target PongTerminal
 
 echo.
