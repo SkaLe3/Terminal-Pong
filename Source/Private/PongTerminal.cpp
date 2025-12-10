@@ -5,13 +5,14 @@
 #include "Input/InputManager.h"
 #include "Engine/AssetManager.h"
 #include "Engine/TextureAsset.h"
+#include "Engine/SpriteAsset.h"
 #include "Render/Renderer.h"
 
 void ApplicationInit()
 {
     GlobalParameters::g_ViewportWidth = 80;
     GlobalParameters::g_ViewportHeight = 25;    
-    GlobalParameters::g_ColorMode = EColorMode::TrueColor;
+    GlobalParameters::g_ColorMode = EColorMode::Ansi16;
     GlobalParameters::g_bUseWindowsApiOutput = false;
 }
 
@@ -35,6 +36,9 @@ private:
     TAssetPtr<TextureAsset> m_GTex9;
     TAssetPtr<TextureAsset> m_GTex10;
     TAssetPtr<TextureAsset> m_GTexTrnt;
+
+    std::shared_ptr<Sprite> m_Sprite;
+    std::shared_ptr<Sprite> m_Sprite2;
 };
 
 void PongTerminal::Init()
@@ -45,6 +49,12 @@ void PongTerminal::Init()
     m_GTex9 = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTest9.thtx");
     m_GTex10 = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTest10.thtx");
     m_GTexTrnt = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTestTrnt.thtx");
+
+    TAssetPtr<TextureAsset> texAss = TextureAsset::Create("ttttttttt\nsssss|\neeeeeee\nwwwwwww|");
+    TAssetPtr<SpriteAsset> spriteAsset = SpriteAsset::Create(texAss);
+    m_Sprite = Sprite::Create(spriteAsset);
+
+    m_Sprite2 = Sprite::Create(AssetManager::Get().LoadAsset<SpriteAsset>("/Engine/GTest.thsprite"));
 }
 
 void PongTerminal::Tick(float deltaTime)
@@ -70,33 +80,14 @@ void PongTerminal::Tick(float deltaTime)
         m_Pos.y += speed * 0.5f * deltaTime;
     }
 
-
-    
-    if (m_GTex3.IsValid())
+    if (m_Sprite)
     {
-        Renderer::GetConsole2D().DrawQuad(iVector(m_Pos.x, m_Pos.y, 0), m_GTex3->GetData().get());
+        g_Engine->Get2D().DrawSprite({m_Pos.x, m_Pos.y, 0}, m_Sprite);
     }
-    
-    if (m_GTex4.IsValid())
+    if (m_Sprite2)
     {
-        Renderer::GetConsole2D().DrawQuad(iVector(m_Pos.x + 15, m_Pos.y, 0), m_GTex4->GetData().get());
+        g_Engine->Get2D().DrawSprite({m_Pos.x + 15, m_Pos.y, 0}, m_Sprite2);
     }
-    
-    if (m_GTex9.IsValid())
-    {
-        Renderer::GetConsole2D().DrawQuad(iVector(m_Pos.x + 30, m_Pos.y, 0), m_GTex9->GetData().get());
-    }
-    if (m_GTex10.IsValid())
-    {
-        Renderer::GetConsole2D().DrawQuad(iVector(m_Pos.x + 45, m_Pos.y, 0), m_GTex10->GetData().get());
-    }
-    if (m_GTexTrnt.IsValid())
-    {
-        Renderer::GetConsole2D().DrawQuad(iVector(m_Pos.x + 60, m_Pos.y, 0), m_GTexTrnt->GetData().get());
-    }
-    
-
-
 }
 
 void PongTerminal::TickFrame(float deltaTime)
