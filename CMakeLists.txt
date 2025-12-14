@@ -71,7 +71,7 @@ target_include_directories(${EXE_BASE_NAME}Server PRIVATE ${PROJECT_SOURCE_DIR}/
 # Common settings for all executables
 foreach(TARGET IN ITEMS ${EXE_BASE_NAME} ${EXE_BASE_NAME}Server)
     # Set output name (e.g., Termynth-Server)
-    if("${TARGET}" STREQUAL "Server")
+    if("${TARGET}" STREQUAL "${EXE_BASE_NAME}Server")
         set(base "${EXE_BASE_NAME}-Server")
     else()
         set(base "${EXE_BASE_NAME}")
@@ -98,11 +98,14 @@ set(INTERMEDIATE_DIR "${CMAKE_BINARY_DIR}/Intermediate/${PLATFORM_NAME}")
 
 # Configure output directories for executables and libraries
 foreach(TARGET IN ITEMS ${EXE_BASE_NAME} ${EXE_BASE_NAME}Server)
+	set(OUTPUT_PATH "${BASE_OUTPUT_DIR}/$<CONFIG>")
     set_target_properties(${TARGET} PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${BASE_OUTPUT_DIR}/$<CONFIG>"
-        LIBRARY_OUTPUT_DIRECTORY "${BASE_OUTPUT_DIR}/$<CONFIG>"
-        ARCHIVE_OUTPUT_DIRECTORY "${BASE_OUTPUT_DIR}/$<CONFIG>"
+        RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_PATH}"
+        LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_PATH}"
+        ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_PATH}"
         OBJECT_OUTPUT_DIRECTORY "${INTERMEDIATE_DIR}/$<CONFIG>/${TARGET}"
+		
+		VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_PATH}"
     )
 endforeach()
 

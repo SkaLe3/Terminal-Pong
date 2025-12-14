@@ -3,16 +3,26 @@
 #include "Core/Globals.h"
 #include "Core/Logger.h"
 #include "Input/InputManager.h"
-#include "Engine/AssetManager.h"
-#include "Engine/TextureAsset.h"
-#include "Engine/SpriteAsset.h"
+#include "Assets/AssetManager.h"
+#include "Assets/TextureAsset.h"
+#include "Assets/SpriteAsset.h"
 #include "Render/Renderer.h"
+
+
+#include "Platform.h"
+#include "Ball.h"
+#include "Wall.h"
+#include "PhysicsWorld.h"
+#include "Networking/NetworkingCore.h"
+#include "PongNetwork.h"
+
+#include <iostream>
 
 void ApplicationInit()
 {
-    GlobalParameters::g_ViewportWidth = 80;
-    GlobalParameters::g_ViewportHeight = 25;    
-    GlobalParameters::g_ColorMode = EColorMode::Ansi16;
+    GlobalParameters::g_ViewportWidth = 61;
+    GlobalParameters::g_ViewportHeight = 29;    
+    GlobalParameters::g_ColorMode = EColorMode::TrueColor;
     GlobalParameters::g_bUseWindowsApiOutput = false;
 }
 
@@ -21,72 +31,121 @@ class PongTerminal : public IGame
 public:
 
     virtual void Init() override;
-    virtual void Start() override {}
+    virtual void Start() override;
     virtual void Tick(float deltaTime) override;
     virtual void TickFrame(float deltaTime) override;
     virtual void End() override {}
     virtual void Shutdown() override {}
 
 private:
-    Vector m_Pos = {0, 0, 0};
-
-    TAssetPtr<TextureAsset> m_GTex;
-    TAssetPtr<TextureAsset> m_GTex3;
-    TAssetPtr<TextureAsset> m_GTex4;
-    TAssetPtr<TextureAsset> m_GTex9;
-    TAssetPtr<TextureAsset> m_GTex10;
-    TAssetPtr<TextureAsset> m_GTexTrnt;
-
-    std::shared_ptr<Sprite> m_Sprite;
-    std::shared_ptr<Sprite> m_Sprite2;
+    PhysicsWorld m_PhysicsWorld;
+    std::vector<std::shared_ptr<GameObject>> m_GameObjects;
+    std::shared_ptr<Platform> m_Player;
 };
 
 void PongTerminal::Init()
 {
-    m_GTex = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTest.thtx");
-    m_GTex3 = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTest3.thtx");
-    m_GTex4 = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTest4.thtx");
-    m_GTex9 = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTest9.thtx");
-    m_GTex10 = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTest10.thtx");
-    m_GTexTrnt = AssetManager::Get().LoadAsset<TextureAsset>("/Engine/GTestTrnt.thtx");
+    #ifndef DEDICATED_SERVER
+    Renderer::Get().SetBgClearColor({0, 0, 0});
+    Renderer::Get().SetUseDefaultBgColor(false);
+    g_Engine->SetCamera2D(Camera2D{ {0, 0} });
+    #endif
 
-    TAssetPtr<TextureAsset> texAss = TextureAsset::Create("ttttttttt\nsssss|\neeeeeee\nwwwwwww|");
-    TAssetPtr<SpriteAsset> spriteAsset = SpriteAsset::Create(texAss);
-    m_Sprite = Sprite::Create(spriteAsset);
+    PongNetwork& net = PongNetwork::Get();
+    int32 otherPlayerIndex = -1;
+    int32 thisPlayerIndex = -1;
 
-    m_Sprite2 = Sprite::Create(AssetManager::Get().LoadAsset<SpriteAsset>("/Engine/GTest.thsprite"));
+    #ifdef DEDICATED_SERVER
+    net.StartServer(54000);
+    thisPlayerIndex = 0;
+    otherPlayerIndex = 1;
+    #else
+    
+
+    bool bConnected = net.ConnectClient("127.0.0.1", 54000);
+    if (!bConnected)
+    {
+        return;
+    }
+    while (!net.HasLocalPlayerIndex())
+    {
+        // Add timeout that indicates unreachable server
+        PongNetwork::Get().Poll();
+    }
+    thisPlayerIndex = net.GetLocalPlayerIndex();
+    otherPlayerIndex = net.GetLocalPlayerIndex() == 0 ? 1 : 0;
+    #endif
+
+    std::shared_ptr<RigidBody> platformRb1 = m_PhysicsWorld.CreateRigidBody();
+    std::shared_ptr<RigidBody> platformRb2 = m_PhysicsWorld.CreateRigidBody();
+    std::shared_ptr<RigidBody> ballRb = m_PhysicsWorld.CreateRigidBody();
+    std::shared_ptr<Platform> paddle1 = std::make_shared<Platform>(thisPlayerIndex, 0);
+    std::shared_ptr<Platform> paddle2 = std::make_shared<Platform>(otherPlayerIndex, 1);
+    std::shared_ptr<Ball> ballObject = std::make_shared<Ball>();
+    paddle1->SetRb(platformRb1);
+    paddle2->SetRb(platformRb2);
+    ballObject->SetRb(ballRb);
+    m_GameObjects.push_back(paddle1);
+    m_GameObjects.push_back(paddle2);
+    m_GameObjects.push_back(ballObject);
+
+    paddle1->GetPosition() = Vector{0, 13.5, 1};
+    paddle2->GetPosition() = Vector{0, -13.5, 1};
+
+    std::shared_ptr<RigidBody> leftWallRb = m_PhysicsWorld.CreateRigidBody();
+    std::shared_ptr<RigidBody> rightWallRb = m_PhysicsWorld.CreateRigidBody();
+    std::shared_ptr<RigidBody> floorRb = m_PhysicsWorld.CreateRigidBody();
+    std::shared_ptr<RigidBody> ceilingRb = m_PhysicsWorld.CreateRigidBody();
+
+    leftWallRb->SetCollider(std::make_shared<BoxCollider>(Vector2{2, 30}));
+    rightWallRb->SetCollider(std::make_shared<BoxCollider>(Vector2{2, 30}));
+    floorRb->SetCollider(std::make_shared<BoxCollider>(Vector2{70, 2}));
+    ceilingRb->SetCollider(std::make_shared<BoxCollider>(Vector2{70, 2}));
+
+    std::shared_ptr<Wall> leftWall = std::make_shared<Wall>();
+    std::shared_ptr<Wall> rightWall = std::make_shared<Wall>();
+    std::shared_ptr<Wall> floor = std::make_shared<Wall>();
+    std::shared_ptr<Wall> ceiling = std::make_shared<Wall>();
+
+    leftWall->SetRb(leftWallRb);
+    rightWall->SetRb(rightWallRb);
+    floor->SetRb(floorRb);
+    ceiling->SetRb(ceilingRb);
+
+    leftWall->GetPosition() = Vector{-32, 0, 0};
+    rightWall->GetPosition() = Vector{32, 0, 0};
+    floor->GetPosition() = Vector{0, 15, 0};
+    ceiling->GetPosition() = Vector{0, -16, 0};
+
+    m_GameObjects.push_back(leftWall);
+    m_GameObjects.push_back(rightWall);
+    m_GameObjects.push_back(floor);
+    m_GameObjects.push_back(ceiling);
+}
+
+void PongTerminal::Start()
+{
+    for (std::shared_ptr<GameObject> obj : m_GameObjects)
+    {
+        obj->Start();
+    }
 }
 
 void PongTerminal::Tick(float deltaTime)
 {
-    auto& input = InputManager::Get();
+    // Poll received messages from the server
+    PongNetwork::Get().Poll();
 
-    float speed = 40.f;
-
-    if (input.GetKey(Key::D))
+    for (std::shared_ptr<GameObject> obj : m_GameObjects)
     {
-        m_Pos.x += speed * deltaTime;
+        obj->Update(deltaTime);
     }
-    if (input.GetKey(Key::A))
+#ifdef DEDICATED_SERVER
+    m_PhysicsWorld.Update(deltaTime);
+#endif
+    for (std::shared_ptr<GameObject> obj : m_GameObjects)
     {
-        m_Pos.x -= speed * deltaTime;
-    }
-    if (input.GetKey(Key::W))
-    {
-        m_Pos.y -= speed * 0.5f * deltaTime;
-    }
-    if (input.GetKey(Key::S))
-    {
-        m_Pos.y += speed * 0.5f * deltaTime;
-    }
-
-    if (m_Sprite)
-    {
-        g_Engine->Get2D().DrawSprite({m_Pos.x, m_Pos.y, 0}, m_Sprite);
-    }
-    if (m_Sprite2)
-    {
-        g_Engine->Get2D().DrawSprite({m_Pos.x + 15, m_Pos.y, 0}, m_Sprite2);
+        obj->Draw();
     }
 }
 
